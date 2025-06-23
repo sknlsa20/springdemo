@@ -1,10 +1,31 @@
-FROM maven:3.8.6-openjdk-17 AS build
+# Use Maven with JDK 17
+FROM maven:3.9.6-eclipse-temurin-17 AS builder
 
+# Set working directory
+WORKDIR /app
+
+# Copy pom.xml and download dependencies
+COPY pom.xml .
+RUN mvn dependency:go-offline
+
+# Copy the rest of the source code
 COPY . .
+
+# Package the application (skip tests if needed)
 RUN mvn clean package -DskipTests
 
-# Stage 2: Create the final image
-FROM openjdk:17-slim
-COPY --from=build /target/demo-0.0.1-SNAPSHOT.jar demo.jar
+# --------------------------
+# Second stage: runtime only
+# --------------------------
+FROM eclipse-temurin:17-jre
+
+WORKDIR /app
+
+# Copy JAR from builder stage
+COPY --from=builder /app/target/*.jar app.jar
+
+# Expose app port
 EXPOSE 8080
-ENTRYPOINT ["java", "-jar", "demo.jar"]
+
+# Run the app
+CMD ["java", "-jar", "app.jar"]
